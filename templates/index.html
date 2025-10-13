@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Face Biometric Studio</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <div class="logo">
+        <i class="fas fa-user-circle logo-icon"></i>
+        <div>
+          <span class="logo-text">Face Biometric Studio</span>
+          <span class="logo-subtitle">Advanced Facial Recognition System</span>
+        </div>
+      </div>
+      <div class="header-controls">
+        <div class="session-info">
+          <span class="session-label">Session ID:</span>
+          <span id="sessionId" class="session-value">—</span>
+        </div>
+        <div style="margin-left:16px;">
+          <button id="toggleStudents" class="btn btn-primary" title="Show / hide students panel">
+            <i class="fas fa-users"></i> Students <span id="thumbCount" style="margin-left:8px;color:var(--muted);font-weight:600;">0</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="main-content">
+      <!-- LEFT: original controls & video -->
+      <div class="left-panel">
+        <div class="panel video-panel">
+          <h2 class="panel-title"><i class="fas fa-video"></i> Camera Feed</h2>
+          <div class="video-container" style="position:relative">
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="procCanvas" style="display:none"></canvas>
+            <canvas id="overlay"></canvas>
+            <canvas id="hiddenCanvas" style="display:none"></canvas>
+          </div>
+
+          <div class="capture-progress">
+            <div class="progress-info">
+              <span>Collection Progress</span>
+              <span id="progressText"><span id="savedCount">0</span>/<span id="targetDisplay">100</span></span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel controls-panel">
+          <h2 class="panel-title"><i class="fas fa-sliders-h"></i> Controls</h2>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="studentName"><i class="fas fa-user"></i> Name</label>
+              <input type="text" id="studentName" placeholder="Enter full name">
+            </div>
+
+            <div class="form-group">
+              <label for="studentUID"><i class="fas fa-id-badge"></i> UID</label>
+              <div style="display:flex;gap:8px;">
+                <input type="text" id="studentUID" placeholder="unique id">
+                <button id="generateUID" class="btn btn-secondary" title="Generate UID"><i class="fas fa-random"></i></button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="targetCount"><i class="fas fa-bullseye"></i> Target Images</label>
+              <select id="targetCount">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="200">200</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="captureFPS"><i class="fas fa-tachometer-alt"></i> Capture FPS</label>
+              <select id="captureFPS">
+                <option value="1">1 fps</option>
+                <option value="2" selected>2 fps</option>
+                <option value="4">4 fps</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Camera Enhancer (inserted) -->
+          <div id="enhancerPanel" class="panel" style="margin-top:12px;padding:12px;">
+            <h3 class="panel-title"><i class="fas fa-sliders-h"></i> Camera Enhancer</h3>
+            <div class="enhancer-grid" style="display:grid;gap:8px;">
+              <label>Brightness <span id="brightnessVal">0</span>
+                <input id="brightness" type="range" min="-100" max="100" value="0">
+              </label>
+              <label>Contrast <span id="contrastVal">0</span>
+                <input id="contrast" type="range" min="-100" max="100" value="0">
+              </label>
+              <label>Saturation <span id="saturationVal">100</span>
+                <input id="saturation" type="range" min="0" max="200" value="100">
+              </label>
+              <label>Sharpness <span id="sharpnessVal">0</span>
+                <input id="sharpness" type="range" min="0" max="100" value="0">
+              </label>
+              <div style="display:flex;gap:10px;align-items:center;margin-top:6px;">
+                <label style="font-size:13px;"><input id="previewToggle" type="checkbox" checked> Preview</label>
+                <label style="font-size:13px;"><input id="applyToSent" type="checkbox"> Apply to sent frames</label>
+                <button id="resetEnhancer" class="btn btn-secondary">Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="button-group primary-controls">
+            <button id="startCam" class="btn btn-primary">
+              <i class="fas fa-play"></i> Start Camera
+            </button>
+            <button id="stopCam" class="btn btn-secondary">
+              <i class="fas fa-stop"></i> Stop Camera
+            </button>
+            <button id="startEnroll" class="btn btn-accent">
+              <i class="fas fa-database"></i> Start Enrollment
+            </button>
+            <button id="stopEnroll" class="btn btn-secondary">
+              <i class="fas fa-times-circle"></i> Stop Enrollment
+            </button>
+            <button id="recognizeBtn" class="btn btn-primary">Recognize Now</button>
+            <button id="downloadDataset" class="btn btn-secondary">Download Dataset</button>
+          </div>
+
+          <div id="message" class="message-box"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Students panel (added) -->
+      <aside class="right-panel" id="studentsPanel" aria-hidden="false">
+        <div class="panel students-panel">
+          <h2 class="panel-title"><i class="fas fa-users"></i> Students</h2>
+
+          <div class="students-controls" style="display:flex;gap:8px;margin-bottom:10px;">
+            <button id="refreshStudents" class="btn btn-secondary">Refresh</button>
+            <button id="createStudentBtn" class="btn btn-accent">Create Student</button>
+          </div>
+
+          <div id="thumbs" class="thumbs-container">
+            <!-- JS will populate student tiles here. -->
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer>
+      <p>Face Biometric Studio &copy; 2023 | Advanced Facial Recognition System</p>
+    </footer>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const toggle = document.getElementById('toggleStudents');
+      const panel = document.getElementById('studentsPanel');
+      const refreshBtn = document.getElementById('refreshStudents');
+      const createBtn = document.getElementById('createStudentBtn');
+
+      toggle && toggle.addEventListener('click', () => {
+        if (!panel) return;
+        const hidden = panel.style.display === 'none';
+        panel.style.display = hidden ? 'block' : 'none';
+      });
+
+      refreshBtn && refreshBtn.addEventListener('click', () => {
+        if (window.loadStudentsList) window.loadStudentsList();
+      });
+
+      createBtn && createBtn.addEventListener('click', () => {
+        const startEnrollBtn = document.getElementById('startEnroll');
+        if (startEnrollBtn) startEnrollBtn.click();
+      });
+    });
+  </script>
+</body>
+</html>
